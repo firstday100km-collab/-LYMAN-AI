@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUMYN AI — Photo to Video Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #050508;
+  --bg2: #0a0a10;
+  --surface: rgba(255,255,255,0.03);
+  --surface2: rgba(255,255,255,0.06);
+  --surface3: rgba(255,255,255,0.09);
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f4f4f8;
+  --muted: rgba(244,244,248,0.45);
+  --muted2: rgba(244,244,248,0.25);
+  --blue: #4f7fff;
+  --purple: #9b5de5;
+  --cyan: #00d4ff;
+  --pink: #ff2d87;
+  --green: #00ff9d;
+  --grad: linear-gradient(135deg, #4f7fff, #9b5de5);
+  --grad2: linear-gradient(135deg, #9b5de5, #ff2d87);
+  --grad3: linear-gradient(135deg, #00d4ff, #4f7fff);
+  --glow-blue: 0 0 40px rgba(79,127,255,0.3);
+  --glow-purple: 0 0 40px rgba(155,93,229,0.3);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ── ANIMATED BG ── */
+.bg-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.12;
+  animation: orbFloat 18s ease-in-out infinite;
+}
+
+.bg-orb:nth-child(1) { width: 700px; height: 700px; background: #4f7fff; top: -200px; left: -200px; animation-delay: 0s; }
+.bg-orb:nth-child(2) { width: 500px; height: 500px; background: #9b5de5; top: 30%; right: -150px; animation-delay: -6s; }
+.bg-orb:nth-child(3) { width: 400px; height: 400px; background: #00d4ff; bottom: -100px; left: 30%; animation-delay: -12s; }
+.bg-orb:nth-child(4) { width: 300px; height: 300px; background: #ff2d87; bottom: 20%; left: 10%; animation-delay: -3s; }
+
+@keyframes orbFloat {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33% { transform: translate(30px,-40px) scale(1.05); }
+  66% { transform: translate(-20px,20px) scale(0.95); }
+}
+
+/* Grid lines */
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Particles */
+#particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+/* ── LAYOUT ── */
+.app { position: relative; z-index: 1; display: flex; min-height: 100vh; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: rgba(5,5,8,0.8);
+  backdrop-filter: blur(24px);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 0;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 100;
+  transition: transform 0.3s;
+}
+
+.logo {
+  padding: 0 24px 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.logo-mark {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.logo-sub {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.nav-section {
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+
+.nav-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted2);
+  padding: 8px 12px;
+  margin-bottom: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  text-decoration: none;
+}
+
+.nav-item:hover { color: var(--text); background: var(--surface2); }
+.nav-item.active { color: var(--text); background: var(--surface3); }
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 20px;
+  background: var(--grad);
+  border-radius: 0 3px 3px 0;
+}
+
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--grad);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 100px;
+  color: #fff;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 20px 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Credits card */
+.credits-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.credits-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.credits-label { font-size: 11px; color: var(--muted); font-weight: 500; }
+.credits-count { font-size: 14px; font-weight: 700; color: var(--text); font-family: 'Syne', sans-serif; }
+
+.credits-bar {
+  height: 4px;
+  background: var(--surface3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.credits-fill {
+  height: 100%;
+  width: 62%;
+  background: var(--grad);
+  border-radius: 2px;
+  animation: creditsPulse 3s ease-in-out infinite;
+}
+
+@keyframes creditsPulse { 0%,100% { opacity:1 } 50% { opacity:0.7 } }
+
+.upgrade-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(79,127,255,0.3);
+  background: rgba(79,127,255,0.08);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.upgrade-btn:hover { background: rgba(79,127,255,0.18); border-color: var(--blue); }
+
+/* User avatar */
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.user-row:hover { background: var(--surface2); }
+
+.avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--grad);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.user-name { font-size: 13px; font-weight: 600; }
+.user-plan { font-size: 10px; color: var(--muted); }
+
+/* ── MAIN ── */
+.main {
+  margin-left: 240px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(5,5,8,0.6);
+  backdrop-filter: blur(20px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.topbar-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+
+.topbar-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topbar-btn:hover { background: var(--surface3); border-color: var(--border2); }
+
+.lang-select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 7px 12px;
+  outline: none;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ── CONTENT ── */
+.content { padding: 32px; flex: 1; }
+
+/* ── PAGE: STUDIO ── */
+.studio-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* ── GLASS CARD ── */
+.glass-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+
+.glass-card:hover { border-color: var(--border2); }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.card-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 100px;
+  border: 1px solid;
+}
+
+.badge-blue { color: var(--blue); border-color: rgba(79,127,255,0.3); background: rgba(79,127,255,0.08); }
+.badge-purple { color: var(--purple); border-color: rgba(155,93,229,0.3); background: rgba(155,93,229,0.08); }
+.badge-green { color: var(--green); border-color: rgba(0,255,157,0.3); background: rgba(0,255,157,0.08); }
+.badge-pink { color: var(--pink); border-color: rgba(255,45,135,0.3); background: rgba(255,45,135,0.08); }
+
+/* ── UPLOAD ZONE ── */
+.upload-zone {
+  margin: 24px;
+  border: 2px dashed rgba(79,127,255,0.25);
+  border-radius: 16px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+  background: rgba(79,127,255,0.02);
+}
+
+.upload-zone::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(79,127,255,0.06) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: rgba(79,127,255,0.6);
+  background: rgba(79,127,255,0.05);
+}
+
+.upload-zone:hover::before, .upload-zone.drag-over::before { opacity: 1; }
+
+.upload-zone input { display: none; }
+
+.upload-icon-wrap {
+  width: 72px; height: 72px;
+  border-radius: 20px;
+  background: var(--grad);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  box-shadow: 0 8px 32px rgba(79,127,255,0.35);
+  animation: iconFloat 3s ease-in-out infinite;
+}
+
+@keyframes iconFloat {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.upload-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; }
+.upload-sub { font-size: 13px; color: var(--muted); }
+
+.upload-browse {
+  padding: 10px 24px;
+  border-radius: 10px;
+  background: var(--grad);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(79,127,255,0.3);
+  pointer-events: none;
+}
+
+.upload-zone:hover .upload-browse {
+  box-shadow: 0 6px 28px rgba(79,127,255,0.5);
+  transform: scale(1.03);
+}
+
+/* Photo grid */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  padding: 0 24px 24px;
+}
+
+.photo-item {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  animation: photoIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes photoIn {
+  from { opacity:0; transform:scale(0.8); }
+  to { opacity:1; transform:scale(1); }
+}
+
+.photo-item:hover { border-color: var(--blue); transform: scale(1.04); }
+.photo-item.selected { border-color: var(--blue); }
+
+.photo-item img { width:100%; height:100%; object-fit:cover; display:block; }
+
+.photo-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s;
+  font-size: 18px;
+}
+
+.photo-item:hover .photo-overlay { opacity: 1; }
+
+.photo-remove {
+  position: absolute; top:5px; right:5px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: rgba(255,45,135,0.9);
+  border: none; color:#fff; font-size:10px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  opacity:0; transition: opacity 0.2s;
+}
+
+.photo-item:hover .photo-remove { opacity: 1; }
+
+/* ── PROMPT BOX ── */
+.prompt-area { padding: 0 24px 20px; }
+
+.prompt-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prompt-enhance-btn {
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 100px;
+  background: rgba(155,93,229,0.12);
+  border: 1px solid rgba(155,93,229,0.3);
+  color: var(--purple);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+  display: flex; align-items: center; gap: 4px;
+}
+
+.prompt-enhance-btn:hover { background: rgba(155,93,229,0.22); }
+
+.prompt-textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s;
+  min-height: 90px;
+}
+
+.prompt-textarea::placeholder { color: var(--muted2); }
+.prompt-textarea:focus { border-color: rgba(79,127,255,0.5); }
+
+/* ── STYLE GRID ── */
+.style-section { padding: 0 24px 20px; }
+.section-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+}
+
+.style-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.style-card {
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid var(--border);
+  transition: all 0.25s;
+  position: relative;
+}
+
+.style-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.style-card.selected { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue), var(--glow-blue); }
+
+.style-thumb {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  position: relative;
+  overflow: hidden;
+}
+
+.style-label {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 4px;
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.style-thumb.cinematic { background: linear-gradient(135deg,#0a0a1a,#1a1a3e); }
+.style-thumb.anime { background: linear-gradient(135deg,#1a0a2e,#3d0f6b); }
+.style-thumb.realistic { background: linear-gradient(135deg,#0a1a0a,#1a3e1a); }
+.style-thumb.fantasy { background: linear-gradient(135deg,#1a0a1a,#4b0082); }
+.style-thumb.slowmo { background: linear-gradient(135deg,#001a2e,#003d6b); }
+.style-thumb.tiktok { background: linear-gradient(135deg,#1a001a,#6b0042); }
+
+/* ── SETTINGS PANEL ── */
+.settings-panel { padding: 0 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.setting-row { display: flex; flex-direction: column; gap: 8px; }
+.setting-label-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted);
+}
+.setting-value { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Duration select */
+.pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill-opt {
+  padding: 7px 14px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12px; font-weight: 600;
+  color: var(--muted); cursor: pointer;
+  transition: all 0.2s;
+}
+.pill-opt:hover { color: var(--text); border-color: var(--border2); }
+.pill-opt.active { color: var(--text); border-color: var(--blue); background: rgba(79,127,255,0.1); }
+
+/* Range */
+.custom-range {
+  -webkit-appearance: none;
+  width: 100%; height: 4px;
+  border-radius: 2px;
+  background: var(--surface3);
+  outline: none; cursor: pointer;
+}
+
+.custom-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--grad);
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(79,127,255,0.5);
+  transition: transform 0.15s;
+}
+
+.custom-range::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+/* Aspect radio */
+.aspect-row { display: flex; gap: 8px; }
+.aspect-opt {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  background: var(--surface);
+}
+.aspect-opt:hover { border-color: var(--border2); }
+.aspect-opt.active { border-color: var(--purple); background: rgba(155,93,229,0.08); }
+.aspect-icon {
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 6px;
+}
+.aspect-label { font-size: 11px; font-weight: 600; color: var(--muted); }
+
+/* Camera motion */
+.motion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.motion-opt {
+  padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11px; font-weight: 600;
+  color: var(--muted); cursor: pointer;
+  transition: all 0.2s; text-align: center;
+}
+.motion-opt:hover { color: var(--text); }
+.motion-opt.active { color: var(--cyan); border-color: rgba(0,212,255,0.35); background: rgba(0,212,255,0.06); }
+
+/* Music */
+.music-grid { display: flex; flex-direction: column; gap: 6px; }
+.music-opt {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer; transition: all 0.2s;
+}
+.music-opt:hover { border-color: var(--border2); }
+.music-opt.active { border-color: rgba(0,255,157,0.35); background: rgba(0,255,157,0.05); }
+.music-icon { font-size: 18px; }
+.music-name { font-size: 12.5px; font-weight: 600; }
+.music-bpm { font-size: 10px; color: var(--muted); margin-left: auto; }
+.music-wave {
+  display: flex; gap: 2px; align-items: center;
+  margin-left: auto;
+  height: 16px;
+}
+.music-wave span {
+  display: block; width: 2px; border-radius: 2px;
+  background: var(--green); opacity: 0.7;
+  animation: wave 1s ease-in-out infinite;
+}
+.music-wave span:nth-child(1) { height: 6px; animation-delay:0s; }
+.music-wave span:nth-child(2) { height:12px; animation-delay:0.1s; }
+.music-wave span:nth-child(3) { height: 8px; animation-delay:0.2s; }
+.music-wave span:nth-child(4) { height:14px; animation-delay:0.3s; }
+.music-wave span:nth-child(5) { height: 6px; animation-delay:0.4s; }
+@keyframes wave { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(0.4)} }
+
+/* ── RIGHT PANEL ── */
+.right-panel { display: flex; flex-direction: column; gap: 20px; }
+
+/* Preview */
+.preview-card { }
+.preview-inner {
+  margin: 20px 20px 0;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  background: #000;
+  aspect-ratio: 16/9;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.preview-empty-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px;
+  position: absolute; inset: 0;
+}
+
+.preview-ring {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgba(79,127,255,0.2);
+  border-top-color: var(--blue);
+  animation: spin 2s linear infinite;
+  display: none;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.preview-placeholder-icon { font-size: 40px; opacity: 0.3; }
+.preview-placeholder-text { font-size: 13px; color: var(--muted); }
+
+#previewCanvas { width:100%; height:100%; object-fit:contain; display:none; }
+#videoOut { width:100%; height:100%; display:none; border-radius:16px; }
+
+/* Before/after toggle */
+.ba-toggle {
+  display: flex;
+  margin: 12px 20px;
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.ba-btn {
+  flex: 1; padding: 7px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+
+.ba-btn.active { background: var(--surface3); color: var(--text); }
+
+/* ── GENERATE BTN ── */
+.generate-section { padding: 0 20px 20px; }
+
+.generate-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  border: none;
+  background: var(--grad);
+  color: #fff;
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+  box-shadow: 0 8px 32px rgba(79,127,255,0.35);
+}
+
+.generate-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+  opacity: 0; transition: opacity 0.3s;
+}
+
+.generate-btn:hover:not(:disabled)::before { opacity: 1; }
+.generate-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(79,127,255,0.5); }
+.generate-btn:active:not(:disabled) { transform: translateY(0); }
+.generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.generate-btn .btn-shimmer {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%);
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+}
+
+.generate-btn:hover .btn-shimmer { transform: translateX(100%); }
+
+.gen-icon { margin-right: 8px; }
+
+/* Credits cost */
+.credit-cost {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.credit-cost span { color: var(--purple); font-weight: 600; }
+
+/* ── PROGRESS ── */
+.progress-card { }
+.progress-inner { padding: 20px 24px; display: none; flex-direction: column; gap: 14px; }
+.progress-inner.active { display: flex; }
+
+.progress-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.progress-title { font-size: 13px; font-weight: 600; }
+.progress-pct {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  background: var(--grad);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--surface3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--grad);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0;
+  width: 40px; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+  animation: progressShimmer 1s ease-in-out infinite;
+}
+
+@keyframes progressShimmer {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.progress-steps {
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.progress-step {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  transition: color 0.3s;
+}
+
+.progress-step.done { color: var(--green); }
+.progress-step.active { color: var(--text); }
+
+.step-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--muted2);
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.progress-step.done .step-dot { background: var(--green); }
+.progress-step.active .step-dot {
+  background: var(--blue);
+  box-shadow: 0 0 8px var(--blue);
+  animation: dotPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes dotPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
+
+/* ── DOWNLOAD ── */
+.download-section { padding: 0 20px 20px; display:none; flex-direction:column; gap:8px; }
+
+.download-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px;
+  border-radius: 12px;
+  border: none;
+  font-size: 13.5px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  transition: all 0.2s;
+}
+
+.download-btn.primary {
+  background: var(--grad2);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(155,93,229,0.3);
+}
+
+.download-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(155,93,229,0.45); }
+
+.download-btn.secondary {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+}
+
+.download-btn.secondary:hover { background: var(--surface3); }
+
+/* ── COMMUNITY / TEMPLATES ── */
+.page { display: none; }
+.page.active { display: block; }
+
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px; font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.section-desc { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.gallery-card {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: all 0.3s;
+  cursor: pointer;
+  animation: cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+.gallery-card:hover { transform: translateY(-6px); border-color: var(--border2); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+
+@keyframes cardIn {
+  from { opacity:0; transform:translateY(20px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+.gallery-thumb {
+  height: 160px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.gallery-thumb::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.7));
+}
+
+.gallery-info { padding: 14px 16px; }
+.gallery-title { font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+.gallery-meta { font-size: 11px; color: var(--muted); display: flex; gap: 12px; }
+
+/* History */
+.history-list { display: flex; flex-direction: column; gap: 10px; }
+.history-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: all 0.2s; cursor: pointer;
+}
+.history-item:hover { border-color: var(--border2); background: var(--surface2); }
+.history-thumb {
+  width: 52px; height: 52px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.history-info { flex: 1; }
+.history-title { font-size: 13.5px; font-weight: 600; margin-bottom: 3px; }
+.history-sub { font-size: 11px; color: var(--muted); }
+.history-status {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 100px;
+}
+.status-done { color: var(--green); background: rgba(0,255,157,0.1); }
+.status-proc { color: var(--blue); background: rgba(79,127,255,0.1); }
+
+/* Pricing */
+.pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.pricing-card {
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 28px;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+.pricing-card:hover { transform: translateY(-4px); border-color: var(--border2); }
+.pricing-card.featured {
+  border-color: rgba(79,127,255,0.5);
+  background: rgba(79,127,255,0.05);
+}
+.pricing-card.featured::before {
+  content: '';
+  position: absolute; top:0; left:0; right:0;
+  height: 2px;
+  background: var(--grad);
+}
+.pricing-popular {
+  position: absolute; top: 16px; right: 16px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--blue);
+  background: rgba(79,127,255,0.12);
+  border: 1px solid rgba(79,127,255,0.3);
+  padding: 4px 10px; border-radius: 100px;
+}
+.pricing-plan { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+.pricing-price { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; margin-bottom: 4px; }
+.pricing-price sub { font-size: 14px; font-weight: 400; color: var(--muted); }
+.pricing-period { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+.pricing-features { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.pricing-feature { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.pricing-feature .check { color: var(--green); font-size: 12px; }
+.pricing-feature .x { color: var(--muted2); font-size: 12px; }
+.pricing-btn {
+  width: 100%; padding: 12px;
+  border-radius: 10px; border: none;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.pricing-btn.primary { background: var(--grad); color: #fff; box-shadow: 0 4px 20px rgba(79,127,255,0.3); }
+.pricing-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(79,127,255,0.45); }
+.pricing-btn.outline { background: transparent; border: 1px solid var(--border2); color: var(--text); }
+.pricing-btn.outline:hover { background: var(--surface2); }
+
+/* Menu toggle mobile */
+.menu-toggle {
+  display: none;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  align-items: center; justify-content: center;
+  font-size: 18px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .studio-grid { grid-template-columns: 1fr; }
+  .right-panel { flex-direction: row; flex-wrap: wrap; }
+  .right-panel > * { flex: 1; min-width: 280px; }
+}
+
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0; }
+  .content { padding: 20px 16px; }
+  .topbar { padding: 14px 16px; }
+  .menu-toggle { display: flex; }
+  .pricing-grid { grid-template-columns: 1fr; }
+  .style-grid { grid-template-columns: repeat(2,1fr); }
+}
+
+/* Tooltip */
+.tooltip { position: relative; }
+.tooltip::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%) scale(0.8);
+  background: rgba(20,20,30,0.95);
+  color: var(--text);
+  font-size: 11px; padding: 5px 10px;
+  border-radius: 6px; white-space: nowrap;
+  border: 1px solid var(--border2);
+  pointer-events: none; opacity: 0;
+  transition: all 0.2s; transform-origin: bottom center;
+}
+.tooltip:hover::after { opacity: 1; transform: translateX(-50%) scale(1); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+/* ── NOTIFICATION ── */
+.notif {
+  position: fixed; bottom: 28px; right: 28px;
+  background: rgba(20,20,30,0.95);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 13px;
+  backdrop-filter: blur(20px);
+  display: flex; align-items: center; gap: 10px;
+  transform: translateY(80px);
+  opacity: 0; transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  z-index: 999;
+  max-width: 320px;
+}
+.notif.show { transform: translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- Animated BG -->
+<div class="bg-canvas">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+</div>
+<div class="bg-grid"></div>
+<canvas id="particles"></canvas>
+
+<!-- Notification -->
+<div class="notif" id="notif">
+  <span id="notifIcon">✨</span>
+  <span id="notifText">Prompt enhanced!</span>
+</div>
+
+<!-- App -->
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">
+      <div class="logo-mark">LUMYN AI</div>
+      <div class="logo-sub">Photo to Video</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Create</div>
+      <div class="nav-item active" onclick="showPage('studio')">
+        <span class="nav-icon">⚡</span> Studio
+      </div>
+      <div class="nav-item" onclick="showPage('templates')">
+        <span class="nav-icon">🎨</span> Templates
+        <span class="nav-badge">New</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Library</div>
+      <div class="nav-item" onclick="showPage('history')">
+        <span class="nav-icon">🕘</span> History
+      </div>
+      <div class="nav-item" onclick="showPage('community')">
+        <span class="nav-icon">🌐</span> Community
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-label">Account</div>
+      <div class="nav-item" onclick="showPage('pricing')">
+        <span class="nav-icon">💎</span> Pricing
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">⚙️</span> Settings
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="credits-card">
+        <div class="credits-top">
+          <div class="credits-label">Credits</div>
+          <div class="credits-count">62 / 100</div>
+        </div>
+        <div class="credits-bar"><div class="credits-fill"></div></div>
+      </div>
+      <button class="upgrade-btn" onclick="showPage('pricing')">⚡ Upgrade to Pro</button>
+      <div class="user-row">
+        <div class="avatar">U</div>
+        <div>
+          <div class="user-name">User</div>
+          <div class="user-plan">Free Plan</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</div>
+        <div class="topbar-title" id="pageTitle">Studio</div>
+      </div>
+      <div class="topbar-right">
+        <select class="lang-select" id="langSelect" onchange="changeLang(this.value)">
+          <option value="en">🌐 English</option>
+          <option value="es">🌐 Español</option>
+          <option value="fr">🌐 Français</option>
+          <option value="de">🌐 Deutsch</option>
+          <option value="ja">🌐 日本語</option>
+          <option value="zh">🌐 中文</option>
+        </select>
+        <div class="topbar-btn" onclick="showPage('pricing')">💎 62 Credits</div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- ── STUDIO PAGE ── -->
+      <div class="page active" id="page-studio">
+        <div class="studio-grid">
+
+          <!-- LEFT COL -->
+          <div style="display:flex;flex-direction:column;gap:20px">
+
+            <!-- Upload -->
+            <div class="glass-card">
+              <div class="card-header">
+                <div class="card-title">📸 Upload Photos</div>
+                <div class="card-badge badge-blue" id="photoCount">0 photos</div>
+              </div>
+              <div class="upload-zone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+                <input type="file" id="fileInput" accept="image/*" multiple>
+                <div class="upload-icon-wrap">📷</div>
+                <div class="upload-title">Drop your photos here</div>
+                <div class="upload-sub">PNG, JPG, WEBP, HEIC supported</div>
+                <div class="upload-browse">Browse Files</div>
+              </div>
+              <div class="photo-grid" id="photoGrid"></div>
+            </div>
+
+            <!-- Prompt -->
+            <div class="glass-card">
+              <div class="card-header">
+                <div class="card-title">✍️ Video Prompt</div>
+                <button class="prompt-enhance-btn" onclick="enhancePrompt()">✨ AI Enhance</button>
+              </div>
+              <div class="prompt-area">
+                <textarea class="prompt-textarea" id="promptBox" placeholder="Describe the video you want to generate... e.g. 'Cinematic slow zoom with golden hour lighting, soft bokeh, ethereal atmosphere'"></textarea>
+              </div>
+            </div>
+
+            <!-- Style -->
+            <div class="glass-card">
+              <div class="card-header">
+                <div class="card-title">🎨 Video Style</div>
+                <div class="card-badge badge-purple">6 Styles</div>
+              </div>
+              <div class="style-section">
+                <div class="style-grid" id="styleGrid">
+                  <div class="style-card selected" data-style="cinematic" onclick="selectStyle(this)">
+                    <div class="style-thumb cinematic">🎬</div>
+                    <div class="style-label">Cinematic</div>
+                  </div>
+                  <div class="style-card" data-style="anime" onclick="selectStyle(this)">
+                    <div class="style-thumb anime">🌸</div>
+                    <div class="style-label">Anime</div>
+                  </div>
+                  <div class="style-card" data-style="realistic" onclick="selectStyle(this)">
+                    <div class="style-thumb realistic">🌿</div>
+                    <div class="style-label">Realistic</div>
+                  </div>
+                  <div class="style-card" data-style="fantasy" onclick="selectStyle(this)">
+                    <div class="style-thumb fantasy">🔮</div>
+                    <div class="style-label">Fantasy</div>
+                  </div>
+                  <div class="style-card" data-style="slowmo" onclick="selectStyle(this)">
+                    <div class="style-thumb slowmo">💧</div>
+                    <div class="style-label">Slow Motion</div>
+                  </div>
+                  <div class="style-card" data-style="tiktok" onclick="selectStyle(this)">
+                    <div class="style-thumb tiktok">🎵</div>
+                    <div class="style-label">TikTok</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="glass-card">
+              <div class="card-header">
+                <div class="card-title">⚙️ Settings</div>
+              </div>
+              <div class="settings-panel">
+
+                <!-- Duration -->
+                <div class="setting-row">
+                  <div class="setting-label-row">
+                    <span>Duration</span>
+                  </div>
+                  <div class="pill-row" id="durationPills">
+                    <div class="pill-opt" onclick="selectDuration(this,'3s')">3s</div>
+                    <div class="pill-opt active" onclick="selectDuration(this,'5s')">5s</div>
+                    <div class="pill-opt" onclick="selectDuration(this,'10s')">10s</div>
+                    <div class="pill-opt" onclick="selectDuration(this,'15s')">15s</div>
+                    <div class="pill-opt tooltip" data-tip="Pro only" onclick="selectDuration(this,'30s')">30s 💎</div>
+                  </div>
+                </div>
+
+                <!-- Aspect Ratio -->
+                <div class="setting-row">
+                  <div class="setting-label-row"><span>Aspect Ratio</span></div>
+                  <div class="aspect-row" id="aspectRow">
+                    <div class="aspect-opt active" onclick="selectAspect(this,'16:9')">
+                      <div class="aspect-icon">
+                        <svg width="30" height="18" viewBox="0 0 30 18" fill="none"><rect x="1" y="1" width="28" height="16" rx="2" stroke="currentColor" stroke-width="1.5" opacity="0.7"/></svg>
+                      </div>
+                      <div class="aspect-label">16:9</div>
+                    </div>
+                    <div class="aspect-opt" onclick="selectAspect(this,'9:16')">
+                      <div class="aspect-icon">
+                        <svg width="18" height="30" viewBox="0 0 18 30" fill="none"><rect x="1" y="1" width="16" height="28" rx="2" stroke="currentColor" stroke-width="1.5" opacity="0.7"/></svg>
+                      </div>
+                      <div class="aspect-label">9:16</div>
+                    </div>
+                    <div class="aspect-opt" onclick="selectAspect(this,'1:1')">
+                      <div class="aspect-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="1" y="1" width="22" height="22" rx="2" stroke="currentColor" stroke-width="1.5" opacity="0.7"/></svg>
+                      </div>
+                      <div class="aspect-label">1:1</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Camera Motion -->
+                <div class="setting-row">
+                  <div class="setting-label-row"><span>Camera Motion</span></div>
+                  <div class="motion-grid" id="motionGrid">
+                    <div class="motion-opt active" onclick="selectMotion(this)">🔍 Zoom In</div>
+                    <div class="motion-opt" onclick="selectMotion(this)">🔎 Zoom Out</div>
+                    <div class="motion-opt" onclick="selectMotion(this)">↔️ Pan Left</div>
+                    <div class="motion-opt" onclick="selectMotion(this)">↔️ Pan Right</div>
+                    <div class="motion-opt" onclick="selectMotion(this)">↕️ Tilt Up</div>
+                    <div class="motion-opt" onclick="selectMotion(this)">↕️ Tilt Down</div>
+                  </div>
+                </div>
+
+                <!-- Quality -->
+                <div class="setting-row">
+                  <div class="setting-label-row">
+                    <span>Quality</span>
+                    <span class="setting-value" id="qualityVal">1080p</span>
+                  </div>
+                  <input type="range" class="custom-range" id="qualityRange" min="0" max="3" step="1" value="1" oninput="updateQuality(this.value)">
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px">
+                    <span>720p</span><span>1080p</span><span>2K</span><span>4K 💎</span>
+                  </div>
+                </div>
+
+                <!-- Music -->
+                <div class="setting-row">
+                  <div class="setting-label-row"><span>Background Music</span></div>
+                  <div class="music-grid">
+                    <div class="music-opt active" onclick="selectMusic(this)">
+                      <span class="music-icon">🌊</span>
+                      <span class="music-name">Cinematic Drift</span>
+                      <span class="music-bpm">72 BPM</span>
+                    </div>
+                    <div class="music-opt" onclick="selectMusic(this)">
+                      <span class="music-icon">⚡</span>
+                      <span class="music-name">Electric Dreams</span>
+                      <span class="music-bpm">128 BPM</span>
+                    </div>
+                    <div class="music-opt" onclick="selectMusic(this)">
+                      <span class="music-icon">🌸</span>
+                      <span class="music-name">Soft Bloom</span>
+                      <span class="music-bpm">85 BPM</span>
+                    </div>
+                    <div class="music-opt" onclick="selectMusic(this)">
+                      <span class="music-icon">🔇</span>
+                      <span class="music-name">No Music</span>
+                      <span class="music-bpm">—</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COL -->
+          <div class="right-panel">
+
+            <!-- Preview -->
+            <div class="glass-card preview-card">
+              <div class="card-header">
+                <div class="card-title">🎬 Preview</div>
+                <div class="card-badge badge-green" id="previewStatus">Ready</div>
+              </div>
+              <div class="preview-inner" id="previewInner">
+                <div class="preview-empty-state" id="previewEmpty">
+                  <div class="preview-ring" id="previewRing"></div>
+                  <div class="preview-placeholder-icon">🎥</div>
+                  <div class="preview-placeholder-text">Your video will appear here</div>
+                </div>
+                <canvas id="previewCanvas"></canvas>
+                <video id="videoOut" controls loop></video>
+              </div>
+              <div class="ba-toggle">
+                <button class="ba-btn active" onclick="setBA('before',this)">Before</button>
+                <button class="ba-btn" onclick="setBA('after',this)">After</button>
+              </div>
+              <div class="generate-section">
+                <button class="generate-btn" id="generateBtn" onclick="generateVideo()">
+                  <span class="btn-shimmer"></span>
+                  <span class="gen-icon">⚡</span> Generate Video
+                </button>
+                <div class="credit-cost">Uses <span>5 credits</span> · 62 remaining</div>
+              </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="glass-card progress-card">
+              <div class="card-header">
+                <div class="card-title">🔄 Rendering</div>
+              </div>
+              <div class="progress-inner" id="progressInner">
+                <div class="progress-header">
+                  <div class="progress-title" id="progressTitle">Analyzing photos…</div>
+                  <div class="progress-pct" id="progressPct">0%</div>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-steps" id="progressSteps">
+                  <div class="progress-step active" id="step1"><div class="step-dot"></div>Analyzing photos</div>
+                  <div class="progress-step" id="step2"><div class="step-dot"></div>Generating motion</div>
+                  <div class="progress-step" id="step3"><div class="step-dot"></div>Applying style transfer</div>
+                  <div class="progress-step" id="step4"><div class="step-dot"></div>Rendering frames</div>
+                  <div class="progress-step" id="step5"><div class="step-dot"></div>Encoding video</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Download -->
+            <div class="glass-card" id="downloadCard">
+              <div class="card-header">
+                <div class="card-title">📥 Export</div>
+                <div class="card-badge badge-pink" id="exportBadge" style="display:none">Ready!</div>
+              </div>
+              <div class="download-section" id="downloadSection">
+                <a class="download-btn primary" id="downloadBtn" href="#" download="lumyn-video.webm">⬇ Download MP4</a>
+                <button class="download-btn secondary" onclick="showNotif('🔗','Share link copied!')">🔗 Copy Share Link</button>
+                <button class="download-btn secondary" onclick="showNotif('✂️','Video added to timeline!')">✂️ Open in Editor</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TEMPLATES PAGE ── -->
+      <div class="page" id="page-templates">
+        <div class="section-title">AI Video Templates</div>
+        <div class="section-desc">Start fast with professionally crafted templates</div>
+        <div class="gallery-grid" id="templatesGrid"></div>
+      </div>
+
+      <!-- ── COMMUNITY PAGE ── -->
+      <div class="page" id="page-community">
+        <div class="section-title">Community Showcase</div>
+        <div class="section-desc">See what creators are making with LUMYN AI</div>
+        <div class="gallery-grid" id="communityGrid"></div>
+      </div>
+
+      <!-- ── HISTORY PAGE ── -->
+      <div class="page" id="page-history">
+        <div class="section-title">Prompt History</div>
+        <div class="section-desc">Your recent generations</div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+
+      <!-- ── PRICING PAGE ── -->
+      <div class="page" id="page-pricing">
+        <div class="section-title">Choose Your Plan</div>
+        <div class="section-desc">Scale your creativity with the right credits</div>
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <div class="pricing-plan">Free</div>
+            <div class="pricing-price">$0<sub>/mo</sub></div>
+            <div class="pricing-period">Forever free</div>
+            <div class="pricing-features">
+              <div class="pricing-feature"><span class="check">✓</span> 100 credits/month</div>
+              <div class="pricing-feature"><span class="check">✓</span> 720p export</div>
+              <div class="pricing-feature"><span class="check">✓</span> 6 video styles</div>
+              <div class="pricing-feature"><span class="check">✓</span> 5s max duration</div>
+              <div class="pricing-feature"><span class="x">✗</span> Watermark-free</div>
+              <div class="pricing-feature"><span class="x">✗</span> 4K export</div>
+            </div>
+            <button class="pricing-btn outline">Current Plan</button>
+          </div>
+          <div class="pricing-card featured">
+            <div class="pricing-popular">Most Popular</div>
+            <div class="pricing-plan">Pro</div>
+            <div class="pricing-price">$19<sub>/mo</sub></div>
+            <div class="pricing-period">Billed monthly</div>
+            <div class="pricing-features">
+              <div class="pricing-feature"><span class="check">✓</span> 1000 credits/month</div>
+              <div class="pricing-feature"><span class="check">✓</span> 1080p export</div>
+              <div class="pricing-feature"><span class="check">✓</span> All 6 video styles</div>
+              <div class="pricing-feature"><span class="check">✓</span> 30s max duration</div>
+              <div class="pricing-feature"><span class="check">✓</span> Watermark-free</div>
+              <div class="pricing-feature"><span class="x">✗</span> 4K export</div>
+            </div>
+            <button class="pricing-btn primary" onclick="showNotif('⚡','Redirecting to checkout...')">Upgrade to Pro</button>
+          </div>
+          <div class="pricing-card">
+            <div class="pricing-plan">Studio</div>
+            <div class="pricing-price">$49<sub>/mo</sub></div>
+            <div class="pricing-period">Billed monthly</div>
+            <div class="pricing-features">
+              <div class="pricing-feature"><span class="check">✓</span> Unlimited credits</div>
+              <div class="pricing-feature"><span class="check">✓</span> 4K export</div>
+              <div class="pricing-feature"><span class="check">✓</span> All styles + custom</div>
+              <div class="pricing-feature"><span class="check">✓</span> 60s max duration</div>
+              <div class="pricing-feature"><span class="check">✓</span> Watermark-free</div>
+              <div class="pricing-feature"><span class="check">✓</span> API access</div>
+            </div>
+            <button class="pricing-btn primary" onclick="showNotif('💎','Redirecting to checkout...')">Get Studio</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ── PARTICLES ──
+(function(){
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize(){
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  class Particle {
+    constructor(){
+      this.x = Math.random() * W;
+      this.y = Math.random() * H;
+      this.r = Math.random() * 1.5 + 0.3;
+      this.vx = (Math.random()-0.5)*0.3;
+      this.vy = (Math.random()-0.5)*0.3;
+      this.alpha = Math.random()*0.4+0.1;
+      const colors=['#4f7fff','#9b5de5','#00d4ff','#ff2d87'];
+      this.color=colors[Math.floor(Math.random()*colors.length)];
+    }
+    update(){
+      this.x+=this.vx; this.y+=this.vy;
+      if(this.x<0) this.x=W;
+      if(this.x>W) this.x=0;
+      if(this.y<0) this.y=H;
+      if(this.y>H) this.y=0;
+    }
+    draw(){
+      ctx.beginPath();
+      ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+      ctx.fillStyle=this.color;
+      ctx.globalAlpha=this.alpha;
+      ctx.fill();
+    }
+  }
+
+  resize();
+  for(let i=0;i<80;i++) particles.push(new Particle());
+
+  function loop(){
+    ctx.clearRect(0,0,W,H);
+    ctx.globalAlpha=1;
+    particles.forEach(p=>{p.update();p.draw();});
+    // lines
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const d=Math.hypot(particles[i].x-particles[j].x,particles[i].y-particles[j].y);
+        if(d<120){
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x,particles[i].y);
+          ctx.lineTo(particles[j].x,particles[j].y);
+          ctx.strokeStyle='rgba(79,127,255,'+(0.06*(1-d/120))+')';
+          ctx.globalAlpha=1;
+          ctx.lineWidth=0.5;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+  window.addEventListener('resize',resize);
+})();
+
+// ── STATE ──
+let photos = [];
+let selectedStyle = 'cinematic';
+let selectedAspect = '16:9';
+let selectedMotion = 'Zoom In';
+let selectedDuration = '5s';
+let isGenerating = false;
+let generatedBlobUrl = null;
+
+// ── FILE UPLOAD ──
+const fileInput = document.getElementById('fileInput');
+const dropzone = document.getElementById('dropzone');
+
+dropzone.addEventListener('dragover', e=>{e.preventDefault();dropzone.classList.add('drag-over');});
+dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop',e=>{
+  e.preventDefault();dropzone.classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change',()=>handleFiles(fileInput.files));
+
+function handleFiles(files){
+  Array.from(files).forEach(f=>{
+    if(!f.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const img = new Image();
+      img.onload=()=>{
+        photos.push({src:e.target.result,img,name:f.name});
+        renderPhotos();
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+function renderPhotos(){
+  const grid = document.getElementById('photoGrid');
+  document.getElementById('photoCount').textContent = photos.length+' photo'+(photos.length!==1?'s':'');
+  if(photos.length===0){grid.innerHTML='';return;}
+  grid.innerHTML = photos.map((p,i)=>`
+    <div class="photo-item" id="pi${i}">
+      <img src="${p.src}" alt="${p.name}">
+      <div class="photo-overlay">👁</div>
+      <button class="photo-remove" onclick="removePhoto(${i});event.stopPropagation()">×</button>
+    </div>
+  `).join('');
+  document.getElementById('generateBtn').disabled = false;
+}
+
+function removePhoto(i){
+  photos.splice(i,1);
+  renderPhotos();
+  fileInput.value='';
+}
+
+// ── SELECTORS ──
+function selectStyle(el){
+  document.querySelectorAll('.style-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedStyle = el.dataset.style;
+}
+
+function selectAspect(el,val){
+  document.querySelectorAll('.aspect-opt').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  selectedAspect=val;
+}
+
+function selectMotion(el){
+  document.querySelectorAll('.motion-opt').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  selectedMotion=el.textContent.trim();
+}
+
+function selectDuration(el,val){
+  document.querySelectorAll('.pill-opt').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  selectedDuration=val;
+}
+
+function selectMusic(el){
+  document.querySelectorAll('.music-opt').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function updateQuality(v){
+  const labels=['720p','1080p','2K','4K'];
+  document.getElementById('qualityVal').textContent=labels[v];
+}
+
+function setBA(mode,el){
+  document.querySelectorAll('.ba-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── AI ENHANCE PROMPT ──
+async function enhancePrompt(){
+  const box = document.getElementById('promptBox');
+  const current = box.value.trim();
+  const btn = document.querySelector('.prompt-enhance-btn');
+  btn.textContent='⏳ Enhancing…';
+  btn.style.opacity='0.7';
+
+  const enhancements = [
+    'Cinematic slow dolly-in with golden hour bokeh, ultra-detailed skin texture, shallow depth of field, 35mm film grain, anamorphic lens flare, dreamy atmospheric haze',
+    'Smooth parallax zoom with ethereal light rays, hyper-realistic HDR rendering, silky motion blur, moody color grading in teal and orange tones',
+    'Sweeping aerial pan with volumetric god rays, photorealistic 8K detail, gentle vignette, time-lapse cloud movement in background',
+    'Elegant tracking shot with soft cinematic glow, rich shadow depth, subtle color grade in warm amber tones, film emulation with gentle chromatic aberration',
+  ];
+
+  // Use Claude API for enhancement
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 120,
+        messages: [{
+          role: "user",
+          content: `You are a creative AI video prompt enhancer. Take this prompt and make it more vivid, cinematic, and detailed for AI video generation. Return ONLY the enhanced prompt, nothing else, max 2 sentences:\n\n"${current || 'a beautiful portrait photo comes to life'}"`
+        }]
+      })
+    });
+    const data = await response.json();
+    if(data.content && data.content[0]) {
+      box.value = data.content[0].text.replace(/^"|"$/g,'');
+    } else {
+      box.value = enhancements[Math.floor(Math.random()*enhancements.length)];
+    }
+  } catch(e) {
+    box.value = enhancements[Math.floor(Math.random()*enhancements.length)];
+  }
+
+  btn.textContent='✨ AI Enhance';
+  btn.style.opacity='1';
+  showNotif('✨','Prompt enhanced with AI!');
+}
+
+// ── CANVAS HELPERS ──
+function getCanvasDims(){
+  const base = 720;
+  if(selectedAspect==='16:9') return{w:Math.round(base*16/9),h:base};
+  if(selectedAspect==='9:16') return{w:Math.round(base*9/16),h:base};
+  return{w:base,h:base};
+}
+
+function drawCover(ctx,img,w,h,extra){
+  const ia=img.naturalWidth/img.naturalHeight,ca=w/h;
+  let sx,sy,sw,sh;
+  if(ia>ca){sh=img.naturalHeight;sw=sh*ca;sx=(img.naturalWidth-sw)/2;sy=0;}
+  else{sw=img.naturalWidth;sh=sw/ca;sx=0;sy=(img.naturalHeight-sh)/2;}
+  if(extra){
+    ctx.save();
+    if(extra.scale){ctx.translate(w/2,h/2);ctx.scale(extra.scale,extra.scale);ctx.translate(-w/2,-h/2);}
+    if(extra.tx) ctx.translate(extra.tx,extra.ty||0);
+  }
+  ctx.drawImage(img,sx,sy,sw,sh,0,0,w,h);
+  if(extra) ctx.restore();
+}
+
+// ── GENERATE VIDEO ──
+async function generateVideo(){
+  if(isGenerating) return;
+  if(photos.length===0){showNotif('📸','Please upload at least one photo!');return;}
+
+  isGenerating=true;
+  const btn=document.getElementById('generateBtn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="btn-shimmer"></span>⏳ Generating…';
+
+  document.getElementById('previewStatus').textContent='Rendering';
+  document.getElementById('previewStatus').className='card-badge badge-blue';
+
+  // Show progress
+  const progressInner=document.getElementById('progressInner');
+  progressInner.classList.add('active');
+  document.getElementById('downloadSection').style.display='none';
+  document.getElementById('exportBadge').style.display='none';
+  document.getElementById('videoOut').style.display='none';
+  document.getElementById('previewCanvas').style.display='block';
+  document.getElementById('previewEmpty').style.display='none';
+
+  const {w,h}=getCanvasDims();
+  const canvas=document.getElementById('previewCanvas');
+  canvas.width=w; canvas.height=h;
+  const ctx=canvas.getContext('2d');
+
+  // Steps animation
+  const steps=['step1','step2','step3','step4','step5'];
+  const titles=['Analyzing photos…','Generating motion…','Applying style transfer…','Rendering frames…','Encoding video…'];
+
+  async function runStep(i,pctStart,pctEnd){
+    steps.forEach((s,idx)=>{
+      const el=document.getElementById(s);
+      if(idx<i) el.className='progress-step done';
+      else if(idx===i) el.className='progress-step active';
+      else el.className='progress-step';
+    });
+    document.getElementById('progressTitle').textContent=titles[i];
+    await animatePct(pctStart,pctEnd,800+(i*200));
+  }
+
+  function animatePct(from,to,dur){
+    return new Promise(res=>{
+      const start=performance.now();
+      function frame(now){
+        const t=Math.min((now-start)/dur,1);
+        const ease=1-Math.pow(1-t,3);
+        const v=Math.round(from+(to-from)*ease);
+        document.getElementById('progressFill').style.width=v+'%';
+        document.getElementById('progressPct').textContent=v+'%';
+        if(t<1) requestAnimationFrame(frame); else res();
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  // Render frames
+  const fps=30, dur=parseInt(selectedDuration)+0.5;
+  const transDur=0.6;
+  const imgDur=photos.length>1?(dur-transDur*(photos.length-1))/photos.length:dur;
+  const totalFrames=Math.ceil(dur*fps);
+
+  await runStep(0,0,15);
+  await runStep(1,15,35);
+  await runStep(2,35,55);
+
+  // Media recorder
+  const stream=canvas.captureStream(fps);
+  const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'video/webm';
+  const mr=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000});
+  const chunks=[];
+  mr.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+  mr.start(100);
+
+  await runStep(3,55,88);
+
+  // Draw frames
+  let frame=0;
+  function renderFrames(){
+    return new Promise(res=>{
+      function tick(){
+        if(frame>=totalFrames){res();return;}
+        const t=frame/fps;
+        const segDur=imgDur+transDur;
+        const si=Math.min(Math.floor(t/segDur),photos.length-1);
+        const st=t-si*segDur;
+        const cur=photos[Math.min(si,photos.length-1)];
+        const nxt=photos[si+1]||null;
+
+        ctx.clearRect(0,0,w,h);
+
+        // Motion
+        let scale=1,tx=0,ty=0;
+        if(selectedMotion.includes('Zoom In')) scale=1+st*0.08;
+        if(selectedMotion.includes('Zoom Out')) scale=1.08-st*0.08;
+        if(selectedMotion.includes('Pan Left')) tx=-st*w*0.05;
+        if(selectedMotion.includes('Pan Right')) tx=st*w*0.05;
+        if(selectedMotion.includes('Tilt Up')) ty=-st*h*0.05;
+        if(selectedMotion.includes('Tilt Down')) ty=st*h*0.05;
+
+        // Style color grade
+        if(st<imgDur||!nxt){
+          ctx.save();
+          ctx.translate(w/2,h/2); ctx.scale(scale,scale); ctx.translate(-w/2,-h/2);
+          ctx.translate(tx,ty);
+          drawCover(ctx,cur.img,w,h);
+          ctx.restore();
+          applyGrade(ctx,w,h);
+        } else {
+          // Transition
+          const p=(st-imgDur)/transDur;
+          const ep=1-Math.pow(1-p,3);
+          drawCover(ctx,cur.img,w,h);
+          ctx.globalAlpha=ep;
+          drawCover(ctx,nxt.img,w,h);
+          ctx.globalAlpha=1;
+          applyGrade(ctx,w,h);
+        }
+
+        frame++;
+        if(frame%4===0) requestAnimationFrame(tick); else tick();
+      }
+      tick();
+    });
+  }
+
+  function applyGrade(ctx,w,h){
+    const style=selectedStyle;
+    if(style==='cinematic'){
+      // Letterbox
+      ctx.fillStyle='#000';
+      ctx.fillRect(0,0,w,h*0.07);
+      ctx.fillRect(0,h*0.93,w,h*0.07);
+    }
+    if(style==='anime'||style==='fantasy'){
+      ctx.fillStyle='rgba(120,0,180,0.08)';
+      ctx.fillRect(0,0,w,h);
+    }
+    if(style==='tiktok'){
+      ctx.fillStyle='rgba(255,0,100,0.05)';
+      ctx.fillRect(0,0,w,h);
+    }
+  }
+
+  await renderFrames();
+  await runStep(4,88,100);
+
+  mr.stop();
+  await new Promise(r=>mr.onstop=r);
+
+  const blob=new Blob(chunks,{type:mime});
+  generatedBlobUrl=URL.createObjectURL(blob);
+
+  const videoOut=document.getElementById('videoOut');
+  videoOut.src=generatedBlobUrl;
+  videoOut.style.display='block';
+  canvas.style.display='none';
+
+  document.getElementById('downloadBtn').href=generatedBlobUrl;
+  document.getElementById('downloadSection').style.display='flex';
+  document.getElementById('downloadSection').style.flexDirection='column';
+  document.getElementById('downloadSection').style.gap='8px';
+  document.getElementById('exportBadge').style.display='inline-flex';
+
+  document.getElementById('previewStatus').textContent='Complete';
+  document.getElementById('previewStatus').className='card-badge badge-green';
+
+  btn.disabled=false;
+  btn.innerHTML='<span class="btn-shimmer"></span><span class="gen-icon">⚡</span> Regenerate';
+  isGenerating=false;
+
+  showNotif('🎬','Video generated successfully!');
+  addToHistory();
+}
+
+// ── HISTORY ──
+const historyItems=[];
+function addToHistory(){
+  const styles={cinematic:'🎬',anime:'🌸',realistic:'🌿',fantasy:'🔮',slowmo:'💧',tiktok:'🎵'};
+  historyItems.unshift({
+    icon:styles[selectedStyle]||'🎬',
+    title:'Generated Video',
+    sub:selectedStyle+' · '+selectedDuration+' · '+selectedAspect,
+    status:'done',
+    time:new Date().toLocaleTimeString()
+  });
+  renderHistory();
+}
+
+function renderHistory(){
+  const list=document.getElementById('historyList');
+  if(historyItems.length===0){list.innerHTML='<p style="color:var(--muted);text-align:center;padding:40px">No videos generated yet</p>';return;}
+  list.innerHTML=historyItems.map(h=>`
+    <div class="history-item">
+      <div class="history-thumb" style="background:var(--surface2)">${h.icon}</div>
+      <div class="history-info">
+        <div class="history-title">${h.title}</div>
+        <div class="history-sub">${h.sub} · ${h.time}</div>
+      </div>
+      <div class="history-status status-${h.status}">${h.status==='done'?'Done':'Processing'}</div>
+    </div>
+  `).join('');
+}
+
+// ── COMMUNITY ──
+const communityData=[
+  {emoji:'🌊',bg:'linear-gradient(135deg,#001a2e,#00d4ff44)',title:'Ocean Dreams',user:'@marina_creates',views:'12.4K',likes:'891'},
+  {emoji:'🌸',bg:'linear-gradient(135deg,#1a0a2e,#9b5de544)',title:'Cherry Blossom Journey',user:'@tokyostudio',views:'8.7K',likes:'654'},
+  {emoji:'🌅',bg:'linear-gradient(135deg,#1a0a00,#ff8c0044)',title:'Golden Hour Portrait',user:'@lightchaser',views:'21.1K',likes:'1.2K'},
+  {emoji:'🌌',bg:'linear-gradient(135deg,#000020,#4f7fff44)',title:'Cosmic Voyage',user:'@starfield_ai',views:'15.6K',likes:'987'},
+  {emoji:'🏔',bg:'linear-gradient(135deg,#0a1a0a,#00ff9d22)',title:'Mountain Serenity',user:'@alp_dreams',views:'9.3K',likes:'742'},
+  {emoji:'🔮',bg:'linear-gradient(135deg,#1a001a,#9b5de544)',title:'Crystal Visions',user:'@mystic.works',views:'18.9K',likes:'1.1K'},
+];
+
+const templateData=[
+  {emoji:'🎬',bg:'linear-gradient(135deg,#0a0a1a,#4f7fff44)',title:'Cinematic Portrait',desc:'Hollywood-grade camera motion'},
+  {emoji:'🌸',bg:'linear-gradient(135deg,#1a0a2e,#9b5de544)',title:'Anime Transformation',desc:'Stylized anime conversion'},
+  {emoji:'💫',bg:'linear-gradient(135deg,#001a00,#00ff9d33)',title:'Nature Timelapse',desc:'Living breathing landscapes'},
+  {emoji:'⚡',bg:'linear-gradient(135deg,#1a0a00,#ff8c0044)',title:'Energy Burst',desc:'Dynamic high-energy cuts'},
+  {emoji:'🌊',bg:'linear-gradient(135deg,#001428,#00d4ff33)',title:'Slow Motion Ocean',desc:'Ultra-smooth 120fps style'},
+  {emoji:'🎵',bg:'linear-gradient(135deg,#14001e,#ff2d8733)',title:'TikTok Viral Style',desc:'Perfect for short-form content'},
+];
+
+function renderCommunity(){
+  document.getElementById('communityGrid').innerHTML=communityData.map((c,i)=>`
+    <div class="gallery-card" style="animation-delay:${i*0.08}s" onclick="showNotif('👁','Opening project...')">
+      <div class="gallery-thumb" style="background:${c.bg};font-size:44px">${c.emoji}</div>
+      <div class="gallery-info">
+        <div class="gallery-title">${c.title}</div>
+        <div class="gallery-meta"><span>${c.user}</span><span>👁 ${c.views}</span><span>❤️ ${c.likes}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderTemplates(){
+  document.getElementById('templatesGrid').innerHTML=templateData.map((t,i)=>`
+    <div class="gallery-card" style="animation-delay:${i*0.08}s" onclick="useTemplate('${t.title}')">
+      <div class="gallery-thumb" style="background:${t.bg};font-size:44px">${t.emoji}</div>
+      <div class="gallery-info">
+        <div class="gallery-title">${t.title}</div>
+        <div class="gallery-meta"><span>${t.desc}</span></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function useTemplate(title){
+  showPage('studio');
+  showNotif('🎨','Template applied: '+title);
+}
+
+// ── PAGES ──
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const titles={studio:'Studio',templates:'Templates',community:'Community',history:'History',pricing:'Pricing'};
+  document.getElementById('pageTitle').textContent=titles[id]||id;
+
+  if(id==='community') renderCommunity();
+  if(id==='templates') renderTemplates();
+  if(id==='history') renderHistory();
+
+  // Close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+// ── SIDEBAR MOBILE ──
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ── NOTIFICATION ──
+let notifTimer;
+function showNotif(icon,text){
+  clearTimeout(notifTimer);
+  const n=document.getElementById('notif');
+  document.getElementById('notifIcon').textContent=icon;
+  document.getElementById('notifText').textContent=text;
+  n.classList.add('show');
+  notifTimer=setTimeout(()=>n.classList.remove('show'),3200);
+}
+
+// ── LANG ──
+const langs={
+  en:{generate:'Generate Video',upload:'Upload Photos',prompt:'Video Prompt'},
+  es:{generate:'Generar Video',upload:'Subir Fotos',prompt:'Mensaje de Video'},
+  fr:{generate:'Générer Vidéo',upload:'Uploader Photos',prompt:'Invite Vidéo'},
+  de:{generate:'Video Generieren',upload:'Fotos Hochladen',prompt:'Video-Prompt'},
+  ja:{generate:'動画を生成',upload:'写真をアップロード',prompt:'ビデオプロンプト'},
+  zh:{generate:'生成视频',upload:'上传照片',prompt:'视频提示'},
+};
+
+function changeLang(l){
+  const t=langs[l]||langs.en;
+  document.getElementById('generateBtn').innerHTML=`<span class="btn-shimmer"></span><span class="gen-icon">⚡</span> ${t.generate}`;
+  showNotif('🌐','Language changed!');
+}
+
+// ── INIT ──
+renderHistory();
+</script>
+</body>
+</html>
